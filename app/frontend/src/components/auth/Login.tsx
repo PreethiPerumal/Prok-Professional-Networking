@@ -1,14 +1,76 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const Login: React.FC = () => {
+  const [form, setForm] = useState({ usernameOrEmail: '', password: '' });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.usernameOrEmail || !form.password) {
+      return;
+    }
+    // TODO: Add login API call here
+    alert('Login submitted!');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
-        <h2 className="text-3xl font-bold text-center text-gray-900">Login</h2>
-        {/* Login form will be implemented here */}
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8] font-sans text-black">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-2xl shadow-md w-full max-w-md px-8 py-10 flex flex-col gap-6 mx-2"
+      >
+        <h2 className="text-2xl font-bold text-center mb-2 text-black">Login</h2>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="usernameOrEmail" className="text-sm font-medium text-black mb-1">
+            Username or Email
+          </label>
+          <input
+            id="usernameOrEmail"
+            name="usernameOrEmail"
+            type="text"
+            autoComplete="username"
+            value={form.usernameOrEmail}
+            onChange={handleChange}
+            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white text-black"
+          />
+          <span className="text-xs text-red-500 min-h-[1.25rem] mt-1">
+            {!form.usernameOrEmail ? 'Username or Email is required.' : '\u00A0'}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="password" className="text-sm font-medium text-black mb-1">
+            Password
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={form.password}
+            onChange={handleChange}
+            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white text-black"
+          />
+          <span className="text-xs text-red-500 min-h-[1.25rem] mt-1">
+            {!form.password ? 'Password is required.' : '\u00A0'}
+          </span>
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition-colors text-base mt-2"
+        >
+          Login
+        </button>
+        <div className="text-center text-sm mt-2 text-black">
+          Don’t have an account?{' '}
+          <Link to="/signup" className="text-blue-600 hover:underline font-medium">Signup</Link>
+        </div>
+      </form>
     </div>
   );
 };
 
-export default Login; 
+export default Login;
