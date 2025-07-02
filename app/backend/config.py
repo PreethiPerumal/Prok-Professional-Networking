@@ -6,7 +6,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev')
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'mysql://root:password@localhost/prok_db')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'mysql://root:SIDdarth29!@localhost/prok_db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT
@@ -14,4 +14,4 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     
     # CORS
-    CORS_HEADERS = 'Content-Type' 
+    CORS_HEADERS = 'Content-Type'

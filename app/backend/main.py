@@ -3,13 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from config import Config
 from dotenv import load_dotenv
+from flask_jwt_extended import JWTManager
+from api.auth import auth_bp
 
 # Load environment variables
 load_dotenv()
 
 # Import models
-from models.user import User, db as user_db
-from models.profile import Profile, Skill, Experience, Education, db as profile_db
+from models.user import db, User
 
 # Create Flask app
 app = Flask(__name__)
@@ -18,8 +19,13 @@ app.config.from_object(Config)
 # Initialize extensions
 CORS(app)
 
-# Initialize database
-db = SQLAlchemy(app)
+db.init_app(app)
+
+# Initialize JWT
+jwt = JWTManager(app)
+
+# Register blueprints
+app.register_blueprint(auth_bp)
 
 def setup_database():
     """Setup database tables"""
@@ -37,4 +43,4 @@ if __name__ == '__main__':
     setup_database()
     
     # Run the app
-    app.run(debug=True) 
+    app.run(debug=True)
