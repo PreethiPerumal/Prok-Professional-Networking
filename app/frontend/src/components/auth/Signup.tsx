@@ -8,13 +8,17 @@ const Signup: React.FC = () => {
     password: '',
     confirm_password: '',
   });
+  const [apiError, setApiError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiError('');
+    setSuccess('');
     if (!form.username || !form.email || !form.password || !form.confirm_password) {
       return;
     }
@@ -24,8 +28,25 @@ const Signup: React.FC = () => {
     if (form.password !== form.confirm_password) {
       return;
     }
-    // TODO: Add signup API call here
-    alert('Signup submitted!');
+    try {
+      const res = await fetch('http://localhost:5000/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: form.username,
+          email: form.email,
+          password: form.password,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 201) {
+        setSuccess('Registration successful! You can now log in.');
+      } else {
+        setApiError(data.message || 'Registration failed.');
+      }
+    } catch (err) {
+      setApiError('Network error.');
+    }
   };
 
   return (
@@ -117,6 +138,8 @@ const Signup: React.FC = () => {
         >
           Signup
         </button>
+        {apiError && <div className="text-red-500 text-sm">{apiError}</div>}
+        {success && <div className="text-green-600 text-sm">{success}</div>}
         <div className="text-center text-sm mt-2 text-black">
           Already have an account?{' '}
           <Link to="/login" className="text-blue-600 hover:underline font-medium">Login</Link>

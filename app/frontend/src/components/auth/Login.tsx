@@ -3,18 +3,39 @@ import { Link } from 'react-router-dom';
 
 const Login: React.FC = () => {
   const [form, setForm] = useState({ usernameOrEmail: '', password: '' });
+  const [apiError, setApiError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setApiError('');
+    setSuccess('');
     if (!form.usernameOrEmail || !form.password) {
       return;
     }
-    // TODO: Add login API call here
-    alert('Login submitted!');
+    try {
+      const res = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usernameOrEmail: form.usernameOrEmail,
+          password: form.password,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 200) {
+        setSuccess('Login successful!');
+        // Optionally: save token to localStorage, redirect, etc.
+      } else {
+        setApiError(data.message || 'Login failed.');
+      }
+    } catch (err) {
+      setApiError('Network error.');
+    }
   };
 
   return (
@@ -64,6 +85,8 @@ const Login: React.FC = () => {
         >
           Login
         </button>
+        {apiError && <div className="text-red-500 text-sm">{apiError}</div>}
+        {success && <div className="text-green-600 text-sm">{success}</div>}
         <div className="text-center text-sm mt-2 text-black">
           Don’t have an account?{' '}
           <Link to="/signup" className="text-blue-600 hover:underline font-medium">Signup</Link>
