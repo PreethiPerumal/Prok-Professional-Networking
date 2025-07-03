@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const Login: React.FC = () => {
+function Login() {
+  // Always start with blank input boxes
   const [form, setForm] = useState({ usernameOrEmail: '', password: '' });
   const [apiError, setApiError] = useState('');
   const [success, setSuccess] = useState('');
@@ -43,6 +44,8 @@ const Login: React.FC = () => {
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-2xl shadow-md w-full max-w-md px-8 py-10 flex flex-col gap-6 mx-2"
+        style={{ marginTop: '2rem', marginBottom: '2rem' }}
+        autoComplete="off"
       >
         <h2 className="text-2xl font-bold text-center mb-2 text-black">Login</h2>
         <div className="flex flex-col gap-1">
@@ -53,12 +56,13 @@ const Login: React.FC = () => {
             id="usernameOrEmail"
             name="usernameOrEmail"
             type="text"
-            autoComplete="username"
+            autoComplete="new-username"
             value={form.usernameOrEmail}
             onChange={handleChange}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white text-black"
+            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white text-black placeholder-gray-400"
+            style={{ backgroundColor: 'white' }}
           />
-          <span className="text-xs text-red-500 min-h-[1.25rem] mt-1">
+          <span className="text-xs text-red-500 min-h-[1.25rem] mt-1 block" style={{ minHeight: '1.25rem' }}>
             {!form.usernameOrEmail ? 'Username or Email is required.' : '\u00A0'}
           </span>
         </div>
@@ -70,12 +74,13 @@ const Login: React.FC = () => {
             id="password"
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             value={form.password}
             onChange={handleChange}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white text-black"
+            className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white text-black placeholder-gray-400"
+            style={{ backgroundColor: 'white' }}
           />
-          <span className="text-xs text-red-500 min-h-[1.25rem] mt-1">
+          <span className="text-xs text-red-500 min-h-[1.25rem] mt-1 block" style={{ minHeight: '1.25rem' }}>
             {!form.password ? 'Password is required.' : '\u00A0'}
           </span>
         </div>
@@ -94,6 +99,6 @@ const Login: React.FC = () => {
       </form>
     </div>
   );
-};
+}
 
 export default Login;
