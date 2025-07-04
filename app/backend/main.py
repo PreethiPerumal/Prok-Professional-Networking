@@ -5,12 +5,14 @@ from config import Config
 from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
 from api.auth import auth_bp
+from api.profile import profile_bp
 
 # Load environment variables
 load_dotenv()
 
 # Import models
 from models.user import db, User
+from models.profile import Profile
 
 # Create Flask app
 app = Flask(__name__)
@@ -26,6 +28,7 @@ jwt = JWTManager(app)
 
 # Register blueprints
 app.register_blueprint(auth_bp)
+app.register_blueprint(profile_bp)
 
 def setup_database():
     """Setup database tables"""

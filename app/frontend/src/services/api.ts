@@ -41,4 +41,18 @@ export const api = {
     });
     return response.json();
   },
-}; 
+
+  // Upload profile image
+  uploadProfileImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await fetch(`${API_URL}/profile/image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: formData,
+    });
+    return response.json();
+  },
+};

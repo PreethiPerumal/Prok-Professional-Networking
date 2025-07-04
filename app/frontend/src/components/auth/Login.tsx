@@ -30,7 +30,10 @@ function Login() {
       const data = await res.json();
       if (res.status === 200) {
         setSuccess('Login successful!');
-        // Optionally: save token to localStorage, redirect, etc.
+        if (data.access_token) {
+          localStorage.setItem('token', data.access_token);
+        }
+        // Optionally: redirect, etc.
       } else {
         setApiError(data.message || 'Login failed.');
       }

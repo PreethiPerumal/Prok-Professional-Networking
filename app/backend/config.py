@@ -15,3 +15,11 @@ class Config:
     
     # CORS
     CORS_HEADERS = 'Content-Type'
+    
+    # File upload settings
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.path.dirname(__file__), 'uploads'))
+    MAX_CONTENT_LENGTH = 2 * 1024 * 1024  # 2MB max file size
+    ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    IMAGE_THUMBNAIL_SIZE = (128, 128)
+    IMAGE_RESIZE_SIZE = (400, 400)
+    IMAGE_COMPRESS_QUALITY = 85

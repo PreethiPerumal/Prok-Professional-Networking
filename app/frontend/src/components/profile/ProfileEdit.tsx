@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../../services/api';
 
 // --- Mock API and Data ---
 const defaultProfile = {
@@ -221,8 +222,21 @@ const ProfileEdit: React.FC = () => {
   };
 
   // Handle image upload
-  const handleAvatarChange = (url: string) => {
-    setForm((f: typeof form) => ({ ...f, avatar: url }));
+  const handleAvatarChange = async (_url: string, file?: File) => {
+    if (file) {
+      setUploading(true);
+      setProgress(0);
+      try {
+        const res = await api.uploadProfileImage(file);
+        if (res.image_url) {
+          setForm((f: typeof form) => ({ ...f, avatar: res.image_url }));
+        }
+      } catch (e) {
+        alert('Image upload failed.');
+      }
+      setUploading(false);
+      setProgress(100);
+    }
   };
 
   // Handle form submit
