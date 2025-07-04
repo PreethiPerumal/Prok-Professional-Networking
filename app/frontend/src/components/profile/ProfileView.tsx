@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
 
 const SectionCard: React.FC<{ title: string; children: React.ReactNode; className?: string }> = ({ title, children, className }) => (
   <div className={`bg-white rounded-xl shadow-sm p-6 mb-4 ${className || ''}`.trim()}>
@@ -8,8 +10,26 @@ const SectionCard: React.FC<{ title: string; children: React.ReactNode; classNam
   </div>
 );
 
-// Default profile data
-const defaultProfile = {
+// Profile interface
+interface ProfileData {
+  username: string;
+  name: string;
+  title: string;
+  location: string;
+  email: string;
+  phone: string;
+  avatarUrl: string;
+  bio: string;
+  skills: string[] | string;
+  socialLinks: Array<{ platform: string; url: string; icon?: React.ReactNode }>;
+  education: Array<{ school: string; degree: string; years: string }>;
+  languages: Array<{ name: string; level: string }>;
+  connections: number;
+  mutualConnections: number;
+}
+
+// Default profile data for fallback
+const defaultProfile: ProfileData = {
   username: 'johnsmith',
   name: 'John Smith',
   title: 'B.E - Electronics and Communication Engineering',
@@ -37,16 +57,13 @@ const defaultProfile = {
   mutualConnections: 25,
 };
 
-// Get profile data from localStorage or return defaultProfile
-const getProfileFromStorage = () => {
-  const stored = localStorage.getItem('profile');
-  return stored ? JSON.parse(stored) : defaultProfile;
-};
-
 // Main ProfileView
 const ProfileView: React.FC = () => {
   const navigate = useNavigate();
-  const [profile] = useState(getProfileFromStorage());
+  const { isAuthenticated, user: authUser } = useAuth();
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activities, setActivities] = useState([
     { id: '1', type: 'Post', content: 'Shared a new article on React.', date: '2025-07-01' },
     { id: '2', type: 'Connection', content: 'Connected with Jane Doe.', date: '2025-06-30' },
@@ -54,6 +71,76 @@ const ProfileView: React.FC = () => {
   ]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
+  // Check authentication on component mount
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Fetch profile data from API
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!isAuthenticated) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await api.getProfile();
+        
+        if (response.error) {
+          setError(response.error);
+          return;
+        }
+
+        // Transform API data to match frontend format
+        const apiProfile = response.profile;
+        
+        // Handle image URL - prefix with backend URL if it exists
+        let avatarUrl = '';
+        if (apiProfile?.image_url) {
+          avatarUrl = `http://localhost:5000${apiProfile.image_url}`;
+        }
+        
+        const transformedProfile = {
+          username: response.user?.username || authUser?.username || 'user',
+          name: apiProfile?.full_name || authUser?.username || 'User',
+          title: apiProfile?.headline || 'Professional',
+          location: apiProfile?.location || 'Location not specified',
+          email: response.user?.email || authUser?.email || 'email@example.com',
+          phone: '+1 555-123-4567', // Not in API yet
+          avatarUrl: avatarUrl,
+          bio: apiProfile?.bio || 'No bio available.',
+          skills: apiProfile?.skills || [],
+          socialLinks: [
+            { platform: 'LinkedIn', url: '', icon: <i className="fab fa-linkedin" /> },
+            { platform: 'GitHub', url: '', icon: <i className="fab fa-github" /> },
+            { platform: 'Twitter', url: '', icon: <i className="fab fa-twitter" /> },
+          ],
+          education: apiProfile?.education || [
+            { school: 'University', degree: 'Degree', years: 'Year' }
+          ],
+          languages: [
+            { name: 'English', level: 'Professional' },
+          ],
+          connections: 200,
+          mutualConnections: 25,
+        };
+
+        setProfile(transformedProfile);
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('Failed to load profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [isAuthenticated, authUser]);
 
   // Lazy load more activities (mock)
   const loadMore = () => {
@@ -68,6 +155,72 @@ const ProfileView: React.FC = () => {
     }, 1000);
   };
 
+  if (!isAuthenticated) {
+    return null; // Will redirect to login
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f6f8] py-8 font-sans text-black">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white rounded-2xl shadow p-8 mb-8">
+            <div className="animate-pulse">
+              <div className="flex items-center gap-6">
+                <div className="w-32 h-32 bg-gray-200 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-xl shadow-sm p-6 mb-4">
+                  <div className="animate-pulse">
+                    <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="md:col-span-1">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#f5f6f8] py-8 font-sans text-black">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white rounded-2xl shadow p-8 text-center">
+            <div className="text-red-600 text-xl mb-4">⚠️ {error}</div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-full"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f6f8] py-8 font-sans text-black">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
@@ -76,10 +229,28 @@ const ProfileView: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center md:items-end gap-6 bg-white rounded-2xl shadow p-8 mb-8 relative">
             <div className="relative -mt-16 md:mt-0">
               <div className="w-28 h-28 md:w-32 md:h-32 rounded-full bg-gray-100 border-4 border-white flex items-center justify-center text-4xl text-gray-400 overflow-hidden">
-                {profile.avatar ? (
-                  <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover rounded-full" />
+                {profile.avatarUrl ? (
+                  <img 
+                    src={profile.avatarUrl} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover rounded-full"
+                    onError={(e) => {
+                      // Fallback to initials if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        const fallback = document.createElement('span');
+                        fallback.textContent = profile.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                        fallback.className = 'text-2xl font-bold text-gray-600';
+                        parent.appendChild(fallback);
+                      }
+                    }}
+                  />
                 ) : (
-                  <span>Profile Pic</span>
+                  <span className="text-2xl font-bold text-gray-600">
+                    {profile.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </span>
                 )}
               </div>
             </div>

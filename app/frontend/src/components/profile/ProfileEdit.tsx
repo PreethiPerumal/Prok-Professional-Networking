@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 
-// --- Mock API and Data ---
+// --- Default Profile Data ---
 const defaultProfile = {
   username: 'johnsmith',
   name: 'John Smith',
@@ -13,6 +13,8 @@ const defaultProfile = {
   avatar: '',
   bio: 'Passionate developer with 10+ years of experience.',
   skills: 'React, TypeScript, Node.js, Python, AWS',
+  experience: '',
+  website: '',
   socialLinks: [
     { platform: 'LinkedIn', url: '' },
     { platform: 'GitHub', url: '' },
@@ -27,16 +29,8 @@ const defaultProfile = {
     { name: 'English', level: 'Professional' },
     { name: 'Hindi', level: 'Conversational' },
   ],
-  connections: 200,
-  mutualConnections: 25,
-};
-
-const getProfileFromStorage = () => {
-  const stored = localStorage.getItem('profile');
-  return stored ? JSON.parse(stored) : defaultProfile;
-};
-const saveProfileToStorage = (profile: any) => {
-  localStorage.setItem('profile', JSON.stringify(profile));
+  connections: '200',
+  mutualConnections: '25',
 };
 
 // Reusable Input component
@@ -182,22 +176,88 @@ const mockActivities = [
 const ProfileEdit: React.FC = () => {
   const navigate = useNavigate();
   // --- State ---
-  const [form, setForm] = useState(getProfileFromStorage());
+  const [form, setForm] = useState(defaultProfile);
   const [errors, setErrors] = useState<{ [k: string]: string }>({});
   const [touched, setTouched] = useState<{ [k: string]: boolean }>({});
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // --- Fetch profile on mount ---
   useEffect(() => {
-    const storedProfile = getProfileFromStorage();
-    setForm(storedProfile);
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('Authentication required');
+          setLoading(false);
+          return;
+        }
+
+        const response = await api.getProfile();
+        
+        if (response.error) {
+          setError(response.error);
+          setLoading(false);
+          return;
+        }
+
+        // Transform API data to match frontend format
+        const apiProfile = response.profile;
+        // Handle image URL - prefix with backend URL if it exists
+        let avatarUrl = '';
+        if (apiProfile?.image_url) {
+          avatarUrl = `http://localhost:5000${apiProfile.image_url}`;
+        }
+        
+        const transformedProfile = {
+          username: response.user?.username || 'user',
+          name: apiProfile?.full_name || 'User',
+          title: apiProfile?.headline || 'Professional',
+          location: apiProfile?.location || 'Location not specified',
+          email: response.user?.email || 'email@example.com',
+          phone: '+1 555-123-4567', // Not in API yet
+          avatar: avatarUrl,
+          bio: apiProfile?.bio || 'No bio available.',
+          skills: Array.isArray(apiProfile?.skills) ? apiProfile.skills.join(', ') : (apiProfile?.skills || ''),
+          experience: apiProfile?.experience || '',
+          website: apiProfile?.website || '',
+          socialLinks: [
+            { platform: 'LinkedIn', url: '' },
+            { platform: 'GitHub', url: '' },
+            { platform: 'Twitter', url: '' },
+          ],
+          education: apiProfile?.education || [
+            { school: 'University', degree: 'Degree', years: 'Year' }
+          ],
+          languages: [
+            { name: 'English', level: 'Professional' },
+          ],
+          connections: '200',
+          mutualConnections: '25',
+        };
+
+        setForm(transformedProfile);
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('Failed to load profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
   }, []);
 
   // Real-time validation
   const validate = (field = form) => {
     const errs: { [k: string]: string } = {};
-    if (!field.username) errs.username = 'Username is required.';
+    if (!field.name) errs.name = 'Full name is required.';
     if (!field.email) errs.email = 'Email is required.';
     else if (!validateEmail(field.email)) errs.email = 'Invalid email.';
     if (!field.bio) errs.bio = 'Bio is required.';
@@ -212,6 +272,7 @@ const ProfileEdit: React.FC = () => {
     setTouched((t) => ({ ...t, [e.target.name]: true }));
     setErrors((errs) => ({ ...errs, [e.target.name]: '' }));
   };
+
   // Handle array field changes (education, languages, socialLinks)
   const handleArrayChange = (field: string, idx: number, key: string, value: string) => {
     setForm((f: any) => {
@@ -229,10 +290,15 @@ const ProfileEdit: React.FC = () => {
       try {
         const res = await api.uploadProfileImage(file);
         if (res.image_url) {
-          setForm((f: typeof form) => ({ ...f, avatar: res.image_url }));
+          // Prefix with backend URL for display
+          const fullImageUrl = `http://localhost:5000${res.image_url}`;
+          setForm((f: typeof form) => ({ ...f, avatar: fullImageUrl }));
+        } else if (res.error) {
+          setError(res.error);
         }
       } catch (e) {
-        alert('Image upload failed.');
+        console.error('Image upload failed:', e);
+        setError('Image upload failed. Please try again.');
       }
       setUploading(false);
       setProgress(100);
@@ -245,16 +311,86 @@ const ProfileEdit: React.FC = () => {
     const errs = validate(form);
     setErrors(errs);
     setTouched({
-      username: true,
+      name: true,
       email: true,
       bio: true,
       skills: true,
       phone: true,
     });
+    
     if (Object.keys(errs).length > 0) return;
-    saveProfileToStorage(form);
-    navigate('/profile');
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      // Transform frontend data to API format
+      const apiData = {
+        name: form.name,
+        bio: form.bio,
+        location: form.location,
+        title: form.title,
+        experience: form.experience || '',
+        education: form.education,
+        skills: form.skills.split(',').map(s => s.trim()).filter(s => s),
+        website: form.website || ''
+      };
+
+      const response = await api.updateProfile(apiData);
+      
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      // Navigate back to profile view on success
+      navigate('/profile');
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      setError('Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f6f8] py-8 font-sans text-black">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white rounded-2xl shadow p-8 mb-8">
+            <div className="animate-pulse">
+              <div className="flex items-center gap-6">
+                <div className="w-32 h-32 bg-gray-200 rounded-full"></div>
+                <div className="flex-1">
+                  <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f6f8] py-8 font-sans text-black">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white rounded-2xl shadow p-8 text-center">
+            <div className="text-red-600 text-xl mb-4">⚠️ {error}</div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-full"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f6f8] py-8 font-sans text-black">
@@ -285,9 +421,27 @@ const ProfileEdit: React.FC = () => {
                 </div>
               </div>
               <div className="flex-1 flex flex-col items-center md:items-start gap-1 w-full">
-                <InputField label="Full Name" name="name" value={form.name} onChange={handleChange} />
-                <InputField label="Title" name="title" value={form.title} onChange={handleChange} />
-                <InputField label="Location" name="location" value={form.location} onChange={handleChange} />
+                <InputField 
+                  label="Full Name" 
+                  name="name" 
+                  value={form.name} 
+                  onChange={handleChange}
+                  error={touched.name ? errors.name : undefined}
+                />
+                <InputField 
+                  label="Title" 
+                  name="title" 
+                  value={form.title} 
+                  onChange={handleChange}
+                  error={touched.title ? errors.title : undefined}
+                />
+                <InputField 
+                  label="Location" 
+                  name="location" 
+                  value={form.location} 
+                  onChange={handleChange}
+                  error={touched.location ? errors.location : undefined}
+                />
                 <div className="flex gap-3 mt-2 justify-center md:justify-start w-full">
                   {form.socialLinks.map((link: any, idx: number) => (
                     <input
@@ -304,17 +458,19 @@ const ProfileEdit: React.FC = () => {
               {/* Save button: absolute on md+, block and at bottom inside card on mobile */}
               <button
                 type="submit"
-                className="hidden md:block absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-full shadow transition-colors text-base"
+                disabled={saving}
+                className="hidden md:block absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold px-6 py-2 rounded-full shadow transition-colors text-base"
               >
-                Save
+                {saving ? 'Saving...' : 'Save'}
               </button>
               {/* Mobile-only Save button inside card */}
               <div className="block md:hidden w-full mt-6">
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-full shadow transition-colors text-base"
+                  disabled={saving}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold px-6 py-2 rounded-full shadow transition-colors text-base"
                 >
-                  Save
+                  {saving ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>
@@ -326,6 +482,17 @@ const ProfileEdit: React.FC = () => {
                 value={form.bio}
                 onChange={handleChange}
                 error={touched.bio ? errors.bio : undefined}
+              />
+            </SectionCard>
+            
+            {/* Experience */}
+            <SectionCard title="Experience">
+              <TextareaField
+                label="Experience"
+                name="experience"
+                value={form.experience}
+                onChange={handleChange}
+                error={touched.experience ? errors.experience : undefined}
               />
             </SectionCard>
             {/* Skills */}
@@ -350,11 +517,40 @@ const ProfileEdit: React.FC = () => {
               <div className="border-l-2 border-blue-200 pl-4">
                 {form.education.map((edu: any, idx: number) => (
                   <div className="mb-4" key={idx}>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium text-gray-700">Education #{idx + 1}</h4>
+                      {form.education.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((f: any) => ({
+                              ...f,
+                              education: f.education.filter((_: any, i: number) => i !== idx)
+                            }));
+                          }}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                     <InputField label="Degree" name={`degree-${idx}`} value={edu.degree} onChange={e => handleArrayChange('education', idx, 'degree', e.target.value)} />
                     <InputField label="School" name={`school-${idx}`} value={edu.school} onChange={e => handleArrayChange('education', idx, 'school', e.target.value)} />
                     <InputField label="Years" name={`years-${idx}`} value={edu.years} onChange={e => handleArrayChange('education', idx, 'years', e.target.value)} />
                   </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f: any) => ({
+                      ...f,
+                      education: [...f.education, { school: '', degree: '', years: '' }]
+                    }));
+                  }}
+                  className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  + Add Education
+                </button>
               </div>
             </SectionCard>
 
@@ -376,18 +572,77 @@ const ProfileEdit: React.FC = () => {
           {/* Right: Sidebar */}
           <div className="w-full md:w-80 flex-shrink-0 flex flex-col gap-4 mt-8 md:mt-0">
             <SectionCard title="Contact Information" className="mb-0">
-              <InputField label="Email" name="email" value={form.email} onChange={handleChange} />
-              <InputField label="Phone" name="phone" value={form.phone} onChange={handleChange} />
-              <InputField label="Location" name="contactLocation" value={form.location} onChange={handleChange} />
+              <InputField 
+                label="Email" 
+                name="email" 
+                value={form.email} 
+                onChange={handleChange}
+                error={touched.email ? errors.email : undefined}
+                autoComplete="email"
+              />
+              <InputField 
+                label="Phone" 
+                name="phone" 
+                value={form.phone} 
+                onChange={handleChange}
+                error={touched.phone ? errors.phone : undefined}
+                autoComplete="tel"
+              />
+              <InputField 
+                label="Website" 
+                name="website" 
+                value={form.website} 
+                onChange={handleChange}
+                error={touched.website ? errors.website : undefined}
+                type="url"
+                autoComplete="url"
+              />
+              <InputField 
+                label="Location" 
+                name="contactLocation" 
+                value={form.location} 
+                onChange={handleChange}
+                error={touched.contactLocation ? errors.contactLocation : undefined}
+              />
             </SectionCard>
             <SectionCard title="Languages" className="mb-0">
               <div className="flex flex-col gap-1">
                 {form.languages.map((lang: any, idx: number) => (
                   <div key={idx} className="flex gap-2 items-center">
-                    <InputField label="Language" name={`lang-name-${idx}`} value={lang.name} onChange={e => handleArrayChange('languages', idx, 'name', e.target.value)} />
-                    <InputField label="Level" name={`lang-level-${idx}`} value={lang.level} onChange={e => handleArrayChange('languages', idx, 'level', e.target.value)} />
+                    <div className="flex-1">
+                      <InputField label="Language" name={`lang-name-${idx}`} value={lang.name} onChange={e => handleArrayChange('languages', idx, 'name', e.target.value)} />
+                    </div>
+                    <div className="flex-1">
+                      <InputField label="Level" name={`lang-level-${idx}`} value={lang.level} onChange={e => handleArrayChange('languages', idx, 'level', e.target.value)} />
+                    </div>
+                    {form.languages.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm((f: any) => ({
+                            ...f,
+                            languages: f.languages.filter((_: any, i: number) => i !== idx)
+                          }));
+                        }}
+                        className="text-red-600 hover:text-red-800 text-sm mt-6"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f: any) => ({
+                      ...f,
+                      languages: [...f.languages, { name: '', level: '' }]
+                    }));
+                  }}
+                  className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  + Add Language
+                </button>
               </div>
             </SectionCard>
             <SectionCard title="Connections" className="mb-0">

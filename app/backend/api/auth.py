@@ -50,7 +50,8 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({'message': 'Incorrect username/email or password.'}), 401
 
-    access_token = create_access_token(identity=user.id)
+    # Store user ID as string in JWT token
+    access_token = create_access_token(identity=str(user.id))
     return jsonify({
         'token': access_token,
         'user': user.to_dict()
